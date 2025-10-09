@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
             Constants.DB_NAME
         ).build()
 
-        // Session Manager 👇
+        // Session Manager
         val sessionManager = SessionManager(applicationContext)
 
         // Repositories TEST

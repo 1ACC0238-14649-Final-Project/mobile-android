@@ -48,17 +48,14 @@ fun AppNavigation(
 
         composable("home") {
             // Placeholder home screen
-            //HomeScreenPlaceholder()
             HomeScreen(navController = navController)
         }
         composable("gigs") {
             // Placeholder gigs screen
-            //Text("Gigs")
             print("Gigs Placeholder")
         }
         composable("favorites") {
             // Placeholder favorites screen
-            //Text("Favorites")
             print("Favorites Placeholder")
         }
 
