@@ -83,6 +83,16 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
+    // Image Loading
+    implementation("io.coil-kt:coil-compose:2.2.2")
+
+    // UI
+    implementation("androidx.compose.ui:ui:1.5.0")
+    implementation("androidx.compose.material:material:1.5.0")
+    implementation("androidx.compose.ui:ui-tooling-preview:1.5.0")
+    implementation("androidx.navigation:navigation-compose:2.7.0")
+    implementation("io.coil-kt:coil-compose:2.5.0")
+    debugImplementation("androidx.compose.ui:ui-tooling:1.5.0")
 
     // Room
     implementation(libs.room.runtime)

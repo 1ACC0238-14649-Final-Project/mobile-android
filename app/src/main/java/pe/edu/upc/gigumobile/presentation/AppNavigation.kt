@@ -8,6 +8,8 @@ import pe.edu.upc.gigumobile.users.presentation.LoginScreen
 import pe.edu.upc.gigumobile.users.presentation.NotFoundScreen
 import pe.edu.upc.gigumobile.users.presentation.RegisterScreen
 import pe.edu.upc.gigumobile.users.presentation.UserViewModel
+import pe.edu.upc.gigumobile.users.presentation.BuyerAccountScreen
+import pe.edu.upc.gigumobile.users.presentation.HomeScreen
 
 @Composable
 fun AppNavigation(
@@ -20,8 +22,8 @@ fun AppNavigation(
         composable("login") {
             LoginScreen(
                 viewModel = userViewModel,
-                onLoginSuccess = { navController.navigate("notfound") {
-                    popUpTo("login") { inclusive = true }
+                onLoginSuccess = { navController.navigate("account") {
+                    popUpTo("account") { inclusive = true } // Brings you to the account page, change if necessary to home or something
                 } },
                 onNavigateToRegister = { navController.navigate("register") }
             )
@@ -43,5 +45,31 @@ fun AppNavigation(
                 } }
             )
         }
+
+        composable("home") {
+            // Placeholder home screen
+            //HomeScreenPlaceholder()
+            HomeScreen(navController = navController)
+        }
+        composable("gigs") {
+            // Placeholder gigs screen
+            //Text("Gigs")
+            print("Gigs Placeholder")
+        }
+        composable("favorites") {
+            // Placeholder favorites screen
+            //Text("Favorites")
+            print("Favorites Placeholder")
+        }
+
+        // Account route
+        composable("account") {
+            BuyerAccountScreen(
+                navController = navController,
+                userViewModel = userViewModel
+            )
+        }
+
+
     }
 }

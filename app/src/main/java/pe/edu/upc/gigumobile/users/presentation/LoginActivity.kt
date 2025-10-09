@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.room.Room
 import pe.edu.upc.gigumobile.common.Constants
+import pe.edu.upc.gigumobile.common.SessionManager
 import pe.edu.upc.gigumobile.common.data.local.AppDatabase
 import pe.edu.upc.gigumobile.common.data.remote.ServiceBuilder
 import pe.edu.upc.gigumobile.ui.theme.tpblueprintTheme
@@ -20,8 +21,14 @@ class LoginActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val db = Room.databaseBuilder(applicationContext, AppDatabase::class.java, Constants.DB_NAME).build()
+        // Test
         val service = ServiceBuilder.createService(AuthService::class.java)
-        val repo = UserRepository(service, db.getUserDao())
+        val sessionManager = SessionManager(this)
+        val repo = UserRepository(service, db.getUserDao(), this)
+
+        // Original
+        //val service = ServiceBuilder.createService(AuthService::class.java)
+        //val repo = UserRepository(service, db.getUserDao())
         viewModel = UserViewModel(repo)
 
         setContent {

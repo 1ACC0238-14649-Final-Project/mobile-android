@@ -13,6 +13,7 @@ import pe.edu.upc.gigumobile.ui.theme.tpblueprintTheme
 import pe.edu.upc.gigumobile.users.data.remote.AuthService
 import pe.edu.upc.gigumobile.users.data.repository.UserRepository
 import pe.edu.upc.gigumobile.users.presentation.UserViewModel
+import pe.edu.upc.gigumobile.common.SessionManager
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,8 +30,18 @@ class MainActivity : ComponentActivity() {
             Constants.DB_NAME
         ).build()
 
-        // Repositories
-        val userRepository = UserRepository(authService, db.getUserDao())
+        // Session Manager 👇
+        val sessionManager = SessionManager(applicationContext)
+
+        // Repositories TEST
+        val userRepository = UserRepository(
+            authService,
+            db.getUserDao(),
+            this
+        )
+
+        // Repositories ORIGINAL
+        //val userRepository = UserRepository(authService, db.getUserDao())
 
         // ViewModels
         val userViewModel = UserViewModel(userRepository)

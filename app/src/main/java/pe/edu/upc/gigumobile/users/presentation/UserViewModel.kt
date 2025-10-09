@@ -10,6 +10,7 @@ import pe.edu.upc.gigumobile.common.UIState
 import pe.edu.upc.gigumobile.users.data.remote.LoginRequest
 import pe.edu.upc.gigumobile.users.data.remote.SignUpRequest
 import pe.edu.upc.gigumobile.users.data.repository.UserRepository
+import pe.edu.upc.gigumobile.users.domain.model.User
 
 class UserViewModel(private val repository: UserRepository) : ViewModel() {
 
@@ -19,11 +20,25 @@ class UserViewModel(private val repository: UserRepository) : ViewModel() {
     private val _signupState = mutableStateOf(UIState<Unit>())
     val signupState: State<UIState<Unit>> get() = _signupState
 
+    // Logged User state
+    private val _currentUser = mutableStateOf<User?>(null)
+    val currentUser: State<User?> get() = _currentUser
+
+    init {
+        // When starting ViewModel, if there's a user it loads it
+        viewModelScope.launch {
+            val savedUser = repository.getSavedUser()
+            _currentUser.value = savedUser
+        }
+    }
+
     fun login(email: String, password: String) {
         _loginState.value = UIState(isLoading = true)
         viewModelScope.launch {
             val res = repository.login(LoginRequest(email, password))
             if (res is Resource.Success) {
+                // Save the logged user
+                _currentUser.value = repository.getSavedUser()
                 _loginState.value = UIState(data = res.data)
             } else {
                 _loginState.value = UIState(message = res.message ?: "Login error")
@@ -31,7 +46,14 @@ class UserViewModel(private val repository: UserRepository) : ViewModel() {
         }
     }
 
-    fun signUp(name: String, lastname: String, email: String, password: String, role: String, image: String) {
+    fun signUp(
+        name: String,
+        lastname: String,
+        email: String,
+        password: String,
+        role: String,
+        image: String
+    ) {
         _signupState.value = UIState(isLoading = true)
         viewModelScope.launch {
             val req = SignUpRequest(name, lastname, email, password, role, image)
@@ -44,5 +66,13 @@ class UserViewModel(private val repository: UserRepository) : ViewModel() {
         }
     }
 
-    suspend fun getSavedUser() = repository.getSavedUser()
+    fun logout() {
+        viewModelScope.launch {
+            // Clear the session inside the repo
+            repository.clearSession()
+            _currentUser.value = null
+        }
+    }
+
+    suspend fun getSavedUser(): User? = repository.getSavedUser()
 }
