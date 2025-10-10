@@ -4,18 +4,18 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import pe.edu.upc.gigumobile.gigs.presentation.BuyerGigDetailScreen
-import pe.edu.upc.gigumobile.gigs.presentation.BuyerGigsScreen
 import pe.edu.upc.gigumobile.gigs.presentation.GigViewModel
 import pe.edu.upc.gigumobile.users.presentation.LoginScreen
 import pe.edu.upc.gigumobile.users.presentation.NotFoundScreen
 import pe.edu.upc.gigumobile.users.presentation.RegisterScreen
 import pe.edu.upc.gigumobile.users.presentation.UserViewModel
+import pe.edu.upc.gigumobile.pulls.presentation.PullViewModel
 
 @Composable
 fun AppNavigation(
     userViewModel: UserViewModel,
-    gigViewModel: GigViewModel
+    gigViewModel: GigViewModel,
+    pullViewModel: PullViewModel
 ) {
     val navController = rememberNavController()
 
@@ -24,9 +24,11 @@ fun AppNavigation(
         composable("login") {
             LoginScreen(
                 viewModel = userViewModel,
-                onLoginSuccess = { navController.navigate("buyer_gigs") {
-                    popUpTo("login") { inclusive = true }
-                } },
+                onLoginSuccess = { 
+                    navController.navigate("main") {
+                        popUpTo("login") { inclusive = true }
+                    } 
+                },
                 onNavigateToRegister = { navController.navigate("register") }
             )
         }
@@ -39,24 +41,17 @@ fun AppNavigation(
             )
         }
 
-        composable("buyer_gigs") {
-            BuyerGigsScreen(
-                viewModel = gigViewModel,
-                onGigSelected = { id -> navController.navigate("buyer_gig_detail/$id") }
+        composable("main") {
+            MainScreen(
+                gigViewModel = gigViewModel,
+                pullViewModel = pullViewModel,
+                onLogout = {
+                    navController.navigate("login") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             )
         }
-
-        composable("buyer_gig_detail/{id}") { backStackEntry ->
-            val id = backStackEntry.arguments?.getString("id") ?: ""
-            BuyerGigDetailScreen(
-                gigId = id,
-                viewModel = gigViewModel,
-                onBack = { navController.popBackStack() },
-                onBuyNow = { /* TODO */ }
-            )
-        }
-
-
 
         // 404 route
         composable("notfound") {
