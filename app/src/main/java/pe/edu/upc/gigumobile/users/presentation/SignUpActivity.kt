@@ -7,7 +7,7 @@ import androidx.room.Room
 import pe.edu.upc.gigumobile.common.Constants
 import pe.edu.upc.gigumobile.common.data.local.AppDatabase
 import pe.edu.upc.gigumobile.common.data.remote.ServiceBuilder
-import pe.edu.upc.gigumobile.ui.theme.tpblueprintTheme
+import pe.edu.upc.gigumobile.ui.theme.GiguMobileTheme
 import pe.edu.upc.gigumobile.users.data.remote.AuthService
 import pe.edu.upc.gigumobile.users.data.repository.UserRepository
 
@@ -24,7 +24,7 @@ class SignUpActivity : ComponentActivity() {
         viewModel = UserViewModel(repo)
 
         setContent {
-            tpblueprintTheme {
+            GiguMobileTheme {
                 RegisterScreen(
                     viewModel = viewModel,
                     onRegisterSuccess = {
