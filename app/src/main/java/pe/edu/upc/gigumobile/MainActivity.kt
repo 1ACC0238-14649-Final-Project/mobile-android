@@ -17,6 +17,9 @@ import pe.edu.upc.gigumobile.ui.theme.GiguMobileTheme
 import pe.edu.upc.gigumobile.users.data.remote.AuthService
 import pe.edu.upc.gigumobile.users.data.repository.UserRepository
 import pe.edu.upc.gigumobile.users.presentation.UserViewModel
+import pe.edu.upc.gigumobile.pulls.data.remote.PullService
+import pe.edu.upc.gigumobile.pulls.data.repository.PullRepository
+import pe.edu.upc.gigumobile.pulls.presentation.PullViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,27 +29,37 @@ class MainActivity : ComponentActivity() {
         // Retrofit services
         val authService = ServiceBuilder.createService(AuthService::class.java)
         val gigService = ServiceBuilder.createService(GigService::class.java)
+        val pullService = ServiceBuilder.createService(PullService::class.java)
 
         // Room database
         val db = Room.databaseBuilder(applicationContext, AppDatabase::class.java, Constants.DB_NAME)
-            .addMigrations(MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
-            // .fallbackToDestructiveMigration() // solo si prefieres reset rápido en dev
+            .addMigrations(
+                MIGRATION_1_2, 
+                AppDatabase.MIGRATION_2_3, 
+                AppDatabase.MIGRATION_3_4, 
+                AppDatabase.MIGRATION_4_5,
+                AppDatabase.MIGRATION_5_6
+            )
+            .fallbackToDestructiveMigration() // Resetea la BD si hay conflictos de versión
             .build()
 
 
         // Repositories
         val userRepository = UserRepository(authService, db.getUserDao())
         val gigRepository = GigRepository(gigService, db.getGigDao(), db.getUserDao())
+        val pullRepository = PullRepository(pullService, db.getPullDao(), db.getUserDao())
 
         // ViewModels
         val userViewModel = UserViewModel(userRepository)
         val gigViewModel = GigViewModel(gigRepository)
+        val pullViewModel = PullViewModel(pullRepository)
 
         setContent {
             GiguMobileTheme  {
                 AppNavigation(
                     userViewModel = userViewModel,
-                    gigViewModel = gigViewModel
+                    gigViewModel = gigViewModel,
+                    pullViewModel = pullViewModel
                 )
             }
         }
