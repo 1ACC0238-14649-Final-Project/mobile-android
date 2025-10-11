@@ -7,8 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,7 +23,7 @@ import coil.compose.rememberAsyncImagePainter
 import pe.edu.upc.gigumobile.gigs.domain.model.Gig
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.material.icons.rounded.ChevronLeft
+import pe.edu.upc.gigumobile.pull.presentation.PullUi // ⬅️ IMPORTANTE
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -31,13 +31,12 @@ fun BuyerGigDetailScreen(
     gigId: String,
     viewModel: GigViewModel,
     onBack: () -> Unit,
-    onBuyNow: () -> Unit
+    onBuyNow: (PullUi) -> Unit   // ⬅️ ahora recibe PullUi
 ) {
     val state = viewModel.detailState.value
 
     LaunchedEffect(gigId) { viewModel.loadGigDetail(gigId) }
 
-    // Azul del mock (ajústalo si tienes uno en tu theme)
     val navy = Color(0xFF163A6B)
 
     Scaffold(
@@ -47,7 +46,7 @@ fun BuyerGigDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.Rounded.ChevronLeft, // ← chevron moderno
+                            imageVector = Icons.Rounded.ChevronLeft,
                             contentDescription = "Back"
                         )
                     }
@@ -60,9 +59,19 @@ fun BuyerGigDetailScreen(
             )
         },
         bottomBar = {
-            if (state.data != null) {
+            state.data?.let { gig ->
                 Button(
-                    onClick = onBuyNow,
+                    onClick = {
+                        // Construimos el objeto visual para PullDetailsScreen
+                        val pullUi = PullUi(
+                            title = gig.title,
+                            description = gig.description.ifBlank { "No description provided." },
+                            imageUrl = gig.image.ifBlank { null },
+                            initialPriceLabel = "$${gig.price}",
+                            currentPriceLabel = "$${gig.price}"
+                        )
+                        onBuyNow(pullUi)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
@@ -138,7 +147,7 @@ private fun DetailContent(
         Spacer(Modifier.height(6.dp))
         Text(gig.description.ifBlank { "No description provided." })
 
-        // === STATS: tags como chips ===
+        // Stats (chips)
         Spacer(Modifier.height(16.dp))
         Text("Stats", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
@@ -156,14 +165,14 @@ private fun DetailContent(
             Text("No tags.")
         }
 
-        // === EXTRAS ===
+        // Extras
         Spacer(Modifier.height(16.dp))
         Text("Extras", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
 
         val extras: List<String> = buildList {
             gig.deliveryDays?.let { add("Delivery: $it day(s)") }
-            if (gig.extraFeatures.isNotEmpty()) addAll(gig.extraFeatures)   // 👈 usa extraFeatures reales
+            if (gig.extraFeatures.isNotEmpty()) addAll(gig.extraFeatures)
         }
 
         if (extras.isEmpty()) {
@@ -184,6 +193,6 @@ private fun DetailContent(
             }
         }
 
-        Spacer(Modifier.height(80.dp)) // espacio para que no tape el botón inferior
+        Spacer(Modifier.height(80.dp)) // espacio para el botón inferior
     }
 }
