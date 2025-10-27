@@ -20,6 +20,8 @@ import pe.edu.upc.gigumobile.gigs.presentation.GigViewModel
 import pe.edu.upc.gigumobile.pulls.presentation.CreatePullScreen
 import pe.edu.upc.gigumobile.pulls.presentation.MyPullsScreen
 import pe.edu.upc.gigumobile.pulls.presentation.PullViewModel
+import pe.edu.upc.gigumobile.users.presentation.BuyerAccountScreen
+import pe.edu.upc.gigumobile.users.presentation.UserViewModel
 
 sealed class BottomNavItem(
     val route: String,
@@ -35,6 +37,7 @@ sealed class BottomNavItem(
 fun MainScreen(
     gigViewModel: GigViewModel,
     pullViewModel: PullViewModel,
+    userViewModel: UserViewModel,
     onLogout: () -> Unit
 ) {
     val navController = rememberNavController()
@@ -131,60 +134,24 @@ fun MainScreen(
                 }
 
                 MyPullsScreen(
-                    buyerId = 1,
+                    buyerId = 0,
                     viewModel = pullViewModel,
-                    onBack = { }, // No back button needed, usar bottom nav
+                    gigViewModel = gigViewModel,
+                    onBack = { 
+                        navController.navigate("home") {
+                            popUpTo("home") { inclusive = false }
+                        }
+                    },
                     onPullClick = { pullId ->
-                        // Aquí puedes navegar a detalle si lo implementas
                     }
                 )
             }
 
             composable("profile") {
-                ProfileScreen(onLogout = onLogout)
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ProfileScreen(onLogout: () -> Unit) {
-    val navy = Color(0xFF163A6B)
-    
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Perfil") },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = navy,
-                    titleContentColor = Color.White
+                BuyerAccountScreen(
+                    userViewModel = userViewModel,
+                    onLogout = onLogout
                 )
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                "Mi Perfil",
-                style = MaterialTheme.typography.headlineMedium
-            )
-            
-            Spacer(modifier = Modifier.weight(1f))
-            
-            Button(
-                onClick = onLogout,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Text("Cerrar Sesión")
             }
         }
     }

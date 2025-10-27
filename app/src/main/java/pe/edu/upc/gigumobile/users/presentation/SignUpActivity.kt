@@ -20,7 +20,7 @@ class SignUpActivity : ComponentActivity() {
 
         val db = Room.databaseBuilder(applicationContext, AppDatabase::class.java, Constants.DB_NAME).build()
         val service = ServiceBuilder.createService(AuthService::class.java)
-        val repo = UserRepository(service, db.getUserDao())
+        val repo = UserRepository(service, db.getUserDao(), this)
         viewModel = UserViewModel(repo)
 
         setContent {
