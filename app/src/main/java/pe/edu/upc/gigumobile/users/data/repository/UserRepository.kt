@@ -1,19 +1,26 @@
 package pe.edu.upc.gigumobile.users.data.repository
 
+import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import pe.edu.upc.gigumobile.common.Resource
+import pe.edu.upc.gigumobile.common.SessionManager
 import pe.edu.upc.gigumobile.users.data.local.UserDao
 import pe.edu.upc.gigumobile.users.data.local.UserEntity
+import pe.edu.upc.gigumobile.users.data.local.toDomain
 import pe.edu.upc.gigumobile.users.data.remote.AuthService
 import pe.edu.upc.gigumobile.users.data.remote.LoginRequest
 import pe.edu.upc.gigumobile.users.data.remote.SignUpRequest
+import pe.edu.upc.gigumobile.users.domain.model.User
 import com.google.gson.JsonParser
 
 class UserRepository(
     private val service: AuthService,
-    private val dao: UserDao
+    private val dao: UserDao,
+    private val context: Context? = null
 ) {
+    // SessionManager opcional para mantener compatibilidad
+    private val sessionManager = context?.let { SessionManager(it) }
     suspend fun signUp(request: SignUpRequest): Resource<Unit> = withContext(Dispatchers.IO) {
         try {
             val res = service.signUp(request)
@@ -37,6 +44,8 @@ class UserRepository(
                 if (!token.isNullOrBlank()) {
                     val userEntity = UserEntity(email = request.email, token = token)
                     dao.insert(userEntity)
+                    // Guardar token en SessionManager si está disponible
+                    sessionManager?.saveToken(token)
                     Resource.Success(token)
                 } else {
                     Resource.Error("Empty token from server")
@@ -69,11 +78,13 @@ class UserRepository(
         }
     }
 
-    suspend fun getSavedUser() = withContext(Dispatchers.IO) {
-        dao.fetchAny()
+    suspend fun getSavedUser(): User? = withContext(Dispatchers.IO) {
+        val entity = dao.fetchAny()
+        entity?.toDomain()
     }
 
-    suspend fun clearUser() = withContext(Dispatchers.IO) {
+    suspend fun clearSession() = withContext(Dispatchers.IO) {
+        sessionManager?.clearSession()
         dao.clearAll()
     }
 }

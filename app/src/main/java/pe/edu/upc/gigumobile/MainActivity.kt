@@ -45,7 +45,7 @@ class MainActivity : ComponentActivity() {
 
 
         // Repositories
-        val userRepository = UserRepository(authService, db.getUserDao())
+        val userRepository = UserRepository(authService, db.getUserDao(), this)
         val gigRepository = GigRepository(gigService, db.getGigDao(), db.getUserDao())
         val pullRepository = PullRepository(pullService, db.getPullDao(), db.getUserDao())
 
