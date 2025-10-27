@@ -9,13 +9,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import pe.edu.upc.gigumobile.gigs.domain.model.Gig
+import pe.edu.upc.gigumobile.gigs.presentation.GigViewModel
 import pe.edu.upc.gigumobile.pulls.domain.model.Pull
 import pe.edu.upc.gigumobile.pulls.domain.model.PullState
 
@@ -24,11 +25,50 @@ import pe.edu.upc.gigumobile.pulls.domain.model.PullState
 fun MyPullsScreen(
     buyerId: Int,
     viewModel: PullViewModel,
+    gigViewModel: GigViewModel,
     onBack: () -> Unit,
     onPullClick: (Int) -> Unit = {}
 ) {
     val state = viewModel.listState.value
     val navy = Color(0xFF163A6B)
+    
+    // Estado para almacenar gigs por ID
+    val gigsCache = remember { mutableStateMapOf<String, Gig>() }
+    
+    // Buscar gigs primero en la lista de gigs disponibles de Home
+    LaunchedEffect(state.data, gigViewModel.listState.value.data) {
+        val availableGigs = gigViewModel.listState.value.data
+        
+        // Buscar cada gig en la lista disponible
+        state.data.forEach { pull ->
+            val gigId = pull.gigId.toString()
+            val gig = availableGigs.find { it.id == gigId }
+            if (gig != null) {
+                gigsCache[gigId] = gig
+            }
+        }
+    }
+    
+    // Cargar gigs individuales que no están en la lista principal
+    LaunchedEffect(state.data, gigViewModel.listState.value.data) {
+        val availableGigs = gigViewModel.listState.value.data
+        
+        // Solo cargar gigs que no están en la lista principal
+        state.data.forEach { pull ->
+            val gigId = pull.gigId.toString()
+            if (!gigsCache.containsKey(gigId) && !availableGigs.any { it.id == gigId }) {
+                gigViewModel.loadGigDetail(gigId)
+            }
+        }
+    }
+    
+    // Capturar gigs individuales cuando se cargan
+    LaunchedEffect(gigViewModel.detailState.value.data) {
+        val gig = gigViewModel.detailState.value.data
+        if (gig != null) {
+            gigsCache[gig.id] = gig
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -87,15 +127,26 @@ fun MyPullsScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
                         .padding(innerPadding)
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(state.data) { pull ->
-                        PullCard(
-                            pull = pull,
-                            onClick = { onPullClick(pull.id) }
-                        )
+                        val gig = gigsCache[pull.gigId.toString()]
+                        if (gig != null) {
+                            GigWithPullCard(
+                                gig = gig,
+                                pullState = pull.state,
+                                onClick = { onPullClick(pull.id) }
+                            )
+                        } else {
+                            // Mientras se carga el gig, mostrar el pull simple
+                            PullCard(
+                                pull = pull,
+                                onClick = { onPullClick(pull.id) }
+                            )
+                        }
                     }
                 }
             }
@@ -164,42 +215,5 @@ fun PullCard(
     }
 }
 
-@Composable
-fun PullStateChip(state: PullState) {
-    val (backgroundColor, textColor, label) = when (state) {
-        PullState.PENDING -> Triple(
-            Color(0xFFFFF3CD),
-            Color(0xFF856404),
-            "Pendiente"
-        )
-        PullState.IN_PROCESS -> Triple(
-            Color(0xFFCCE5FF),
-            Color(0xFF004085),
-            "En Proceso"
-        )
-        PullState.PAYED -> Triple(
-            Color(0xFFD4EDDA),
-            Color(0xFF155724),
-            "Pagado"
-        )
-        PullState.COMPLETE -> Triple(
-            Color(0xFFD1ECF1),
-            Color(0xFF0C5460),
-            "Completado"
-        )
-    }
 
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = backgroundColor
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = textColor,
-            fontWeight = FontWeight.Medium
-        )
-    }
-}
 

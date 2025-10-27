@@ -131,9 +131,14 @@ fun MainScreen(
                 }
 
                 MyPullsScreen(
-                    buyerId = 1,
+                    buyerId = 0, // Este parámetro no se usa, el viewModel ya tiene los datos
                     viewModel = pullViewModel,
-                    onBack = { }, // No back button needed, usar bottom nav
+                    gigViewModel = gigViewModel,
+                    onBack = { 
+                        navController.navigate("home") {
+                            popUpTo("home") { inclusive = false }
+                        }
+                    },
                     onPullClick = { pullId ->
                         // Aquí puedes navegar a detalle si lo implementas
                     }

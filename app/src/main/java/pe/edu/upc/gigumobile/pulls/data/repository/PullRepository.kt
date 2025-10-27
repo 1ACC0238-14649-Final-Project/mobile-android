@@ -69,6 +69,46 @@ class PullRepository(
         state: PullState = PullState.PENDING
     ): Resource<Pull> = withContext(Dispatchers.IO) {
         try {
+            // Primero sincronizar con el backend para asegurar que tenemos todos los pulls actuales
+            try {
+                val auth = authHeader() ?: return@withContext Resource.Error("Debes iniciar sesión.")
+                val syncResp = service.getPullsByRole(auth, role = "buyer", userId = buyerId)
+                
+                if (syncResp.isSuccessful) {
+                    val bodyStr = syncResp.body()?.string().orEmpty()
+                    val itemsArray: JSONArray = when {
+                        bodyStr.trim().startsWith("[") -> JSONArray(bodyStr)
+                        else -> {
+                            val obj = JSONObject(bodyStr)
+                            when {
+                                obj.has("data") -> obj.getJSONArray("data")
+                                obj.has("items") -> obj.getJSONArray("items")
+                                obj.has("results") -> obj.getJSONArray("results")
+                                else -> JSONArray()
+                            }
+                        }
+                    }
+
+                    val listType = object : TypeToken<List<PullDto>>() {}.type
+                    val dtoList: List<PullDto> = gson.fromJson(itemsArray.toString(), listType)
+
+                    val pulls = dtoList.map { dto ->
+                        Pull(
+                            id = dto.id,
+                            sellerId = dto.sellerId,
+                            buyerId = dto.buyerId,
+                            gigId = dto.gigId,
+                            priceInit = dto.priceInit,
+                            priceUpdate = dto.priceUpdate,
+                            state = PullState.fromString(dto.state)
+                        )
+                    }
+                    pullDao.insertAll(pulls.map { it.toEntity() })
+                }
+            } catch (e: Exception) {
+                // Si falla la sincronización, continuar con la verificación local
+            }
+
             // Verificar si ya existe un pull para este gig y buyer
             val existingPull = pullDao.findByGigAndBuyer(gigId, buyerId)
             if (existingPull != null) {
@@ -105,7 +145,17 @@ class PullRepository(
                 val errorMsg = when (resp.code()) {
                     404 -> "Endpoint no encontrado (404). Verifica la URL: api/v1/pull"
                     401 -> "No autorizado (401). Verifica el token"
-                    400 -> "Request inválido (400): $errorBody"
+                    400 -> {
+                        // Si es un error 400, intentar extraer el pull existente del mensaje de error
+                        if (errorBody.contains("already exists") || errorBody.contains("existente")) {
+                            // Buscar el pull en el backend
+                            val existingPullFromBackend = pullDao.findByGigAndBuyer(gigId, buyerId)
+                            if (existingPullFromBackend != null) {
+                                return@withContext Resource.Error("Ya tienes un pull activo para este Gig (Pull #${existingPullFromBackend.id})")
+                            }
+                        }
+                        "Request inválido (400): $errorBody"
+                    }
                     else -> "Error ${resp.code()}: $errorBody"
                 }
                 Resource.Error(errorMsg)
