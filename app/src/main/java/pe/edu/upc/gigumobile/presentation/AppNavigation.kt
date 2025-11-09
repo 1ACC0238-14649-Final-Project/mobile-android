@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import pe.edu.upc.gigumobile.gigs.presentation.BuyerGigDetailScreen
 import pe.edu.upc.gigumobile.gigs.presentation.GigViewModel
 import pe.edu.upc.gigumobile.users.presentation.LoginScreen
 import pe.edu.upc.gigumobile.users.presentation.NotFoundScreen
@@ -35,7 +36,7 @@ fun AppNavigation(
             LoginScreen(
                 viewModel = userViewModel,
                 onLoginSuccess = {
-                    navController.navigate("buyer_gigs") {
+                    navController.navigate("main") {
                         popUpTo("login") { inclusive = true }
                     }
                 },
