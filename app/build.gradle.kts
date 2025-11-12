@@ -61,6 +61,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
+    implementation("com.google.accompanist:accompanist-systemuicontroller:0.34.0")
 
     // Compose
     implementation(platform(libs.androidx.compose.bom))

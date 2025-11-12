@@ -40,7 +40,7 @@ class MainActivity : ComponentActivity() {
                 AppDatabase.MIGRATION_4_5,
                 AppDatabase.MIGRATION_5_6
             )
-            .fallbackToDestructiveMigration() // Resetea la BD si hay conflictos de versión
+            .fallbackToDestructiveMigration()
             .build()
 
 
@@ -54,8 +54,9 @@ class MainActivity : ComponentActivity() {
         val gigViewModel = GigViewModel(gigRepository)
         val pullViewModel = PullViewModel(pullRepository)
 
+        // En false el darkTheme para que la interfaz en el dispositivo se vea igual que en la interfaz de android studio
         setContent {
-            GiguMobileTheme  {
+            GiguMobileTheme(darkTheme = false)  {
                 AppNavigation(
                     userViewModel = userViewModel,
                     gigViewModel = gigViewModel,
