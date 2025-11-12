@@ -90,10 +90,11 @@ fun MainScreen(
             }
         }
     ) { innerPadding ->
+        val contentPaddingOnlyTop = PaddingValues(top = innerPadding.calculateTopPadding())
         NavHost(
             navController = navController,
             startDestination = "home",
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(contentPaddingOnlyTop)
         ) {
             composable("home") {
                 BuyerGigsScreen(
