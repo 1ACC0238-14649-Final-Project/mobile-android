@@ -11,8 +11,8 @@ data class Gig(
     val tags: List<String> = emptyList(),
     val deliveryDays: Int? = null,
     val extraFeatures: List<String> = emptyList(),
-    // NUEVO (solo para red):
     val sellerId: String? = null,
-    val sellerAvatar: String? = null
+    val sellerAvatar: String? = null,
+    val gigLink: String? = null
 )
 

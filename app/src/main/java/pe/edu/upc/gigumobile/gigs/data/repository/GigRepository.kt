@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import pe.edu.upc.gigumobile.common.Constants
 import pe.edu.upc.gigumobile.common.Resource
 import pe.edu.upc.gigumobile.gigs.data.local.GigDao
 import pe.edu.upc.gigumobile.gigs.data.local.toDomain
@@ -93,7 +94,8 @@ class GigRepository(
                     tags = d.tags ?: emptyList(),
                     deliveryDays = d.deliveryDays,
                     extraFeatures = d.extraFeatures ?: emptyList(),
-                    sellerId = d.sellerId?.toString() // conserva el sellerId para usar luego si quieres
+                    sellerId = d.sellerId?.toString(), // conserva el sellerId para usar luego si quieres
+                    gigLink = "${Constants.BASE_URL}gig/${d.id}"
                 )
             }
 
