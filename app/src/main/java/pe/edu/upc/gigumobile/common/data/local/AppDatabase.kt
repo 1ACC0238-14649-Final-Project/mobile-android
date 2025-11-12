@@ -98,39 +98,41 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        // De 5 -> 6: agregar constraint UNIQUE para evitar pulls duplicados
+        // De 5 -> 6: agregar constraint UNIQUE como índice nombrado por Room
         val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Crear nueva tabla con constraint UNIQUE
+                // 1) Crear tabla temporal
                 db.execSQL(
                     """
-                    CREATE TABLE IF NOT EXISTS `pulls_new` (
-                        `id` INTEGER NOT NULL,
-                        `sellerId` INTEGER NOT NULL,
-                        `buyerId` INTEGER NOT NULL,
-                        `gigId` INTEGER NOT NULL,
-                        `priceInit` REAL NOT NULL,
-                        `priceUpdate` REAL NOT NULL,
-                        `state` TEXT NOT NULL,
-                        PRIMARY KEY(`id`),
-                        UNIQUE(`gigId`, `buyerId`)
-                    )
-                    """.trimIndent()
+                CREATE TABLE IF NOT EXISTS `pulls_new` (
+                    `id` INTEGER NOT NULL,
+                    `sellerId` INTEGER NOT NULL,
+                    `buyerId` INTEGER NOT NULL,
+                    `gigId` INTEGER NOT NULL,
+                    `priceInit` REAL NOT NULL,
+                    `priceUpdate` REAL NOT NULL,
+                    `state` TEXT NOT NULL,
+                    PRIMARY KEY(`id`)
                 )
-                
-                // Copiar datos existentes (si hay)
+                """.trimIndent()
+                )
+
                 db.execSQL(
                     """
-                    INSERT OR IGNORE INTO `pulls_new` 
+                    INSERT OR IGNORE INTO `pulls_new`
                     SELECT * FROM `pulls`
-                    """.trimIndent()
+                """.trimIndent()
                 )
-                
-                // Eliminar tabla antigua
+
                 db.execSQL("DROP TABLE `pulls`")
-                
-                // Renombrar nueva tabla
                 db.execSQL("ALTER TABLE `pulls_new` RENAME TO `pulls`")
+
+                db.execSQL(
+                    """
+                    CREATE UNIQUE INDEX IF NOT EXISTS `index_pulls_gigId_buyerId`
+                    ON `pulls` (`gigId`, `buyerId`)
+                """.trimIndent()
+                )
             }
         }
     }
