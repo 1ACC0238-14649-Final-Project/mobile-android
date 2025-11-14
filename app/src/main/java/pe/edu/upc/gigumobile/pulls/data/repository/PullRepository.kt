@@ -33,11 +33,14 @@ class PullRepository(
     suspend fun getCurrentUserId(): Int {
         return withContext(Dispatchers.IO) {
             try {
-                val token = userDao.fetchAny()?.token ?: return@withContext 1
+                val token = userDao.fetchAny()?.token ?: return@withContext 0
                 
                 // Decodificar el JWT token para extraer el userId
                 val parts = token.split(".")
-                if (parts.size != 3) return@withContext 1
+                if (parts.size != 3) {
+                    // Token inválido - no retornar valor por defecto
+                    return@withContext 0
+                }
                 
                 // Decodificar el payload (segunda parte del JWT)
                 val payload = String(Base64.decode(parts[1], Base64.URL_SAFE))
@@ -46,13 +49,18 @@ class PullRepository(
                 // Extraer el sid (user ID) del claim
                 val sidClaim = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/sid"
                 if (jsonPayload.has(sidClaim)) {
-                    jsonPayload.getString(sidClaim).toIntOrNull() ?: 1
+                    val userId = jsonPayload.getString(sidClaim).toIntOrNull()
+                    // Solo retornar si el userId es válido (mayor que 0)
+                    userId?.takeIf { it > 0 } ?: 0
                 } else {
-                    1
+                    // No se encontró el claim - no retornar valor por defecto
+                    0
                 }
             } catch (e: Exception) {
-                // Si hay error al decodificar, retornar 1 como fallback
-                1
+                // Si hay error al decodificar, retornar 0 para indicar error
+                // NO retornar 1 como fallback porque causaría que todos los usuarios
+                // con problemas de token tengan el mismo buyerId
+                0
             }
         }
     }
@@ -69,59 +77,99 @@ class PullRepository(
         state: PullState = PullState.PENDING
     ): Resource<Pull> = withContext(Dispatchers.IO) {
         try {
-            // Primero sincronizar con el backend para asegurar que tenemos todos los pulls actuales
-            try {
-                val auth = authHeader() ?: return@withContext Resource.Error("Debes iniciar sesión.")
-                val syncResp = service.getPullsByRole(auth, role = "buyer", userId = buyerId)
-                
-                if (syncResp.isSuccessful) {
-                    val bodyStr = syncResp.body()?.string().orEmpty()
-                    val itemsArray: JSONArray = when {
-                        bodyStr.trim().startsWith("[") -> JSONArray(bodyStr)
-                        else -> {
-                            val obj = JSONObject(bodyStr)
-                            when {
-                                obj.has("data") -> obj.getJSONArray("data")
-                                obj.has("items") -> obj.getJSONArray("items")
-                                obj.has("results") -> obj.getJSONArray("results")
-                                else -> JSONArray()
-                            }
-                        }
-                    }
-
-                    val listType = object : TypeToken<List<PullDto>>() {}.type
-                    val dtoList: List<PullDto> = gson.fromJson(itemsArray.toString(), listType)
-
-                    val pulls = dtoList.map { dto ->
-                        Pull(
-                            id = dto.id,
-                            sellerId = dto.sellerId,
-                            buyerId = dto.buyerId,
-                            gigId = dto.gigId,
-                            priceInit = dto.priceInit,
-                            priceUpdate = dto.priceUpdate,
-                            state = PullState.fromString(dto.state)
-                        )
-                    }
-                    pullDao.insertAll(pulls.map { it.toEntity() })
-                }
-            } catch (e: Exception) {
-                // Si falla la sincronización, continuar con la verificación local
+            // Validar que los parámetros sean válidos
+            if (gigId <= 0) {
+                return@withContext Resource.Error("El ID del gig no es válido. No se puede crear el pull.")
             }
-
-            // Verificar si ya existe un pull para este gig y buyer
-            val existingPull = pullDao.findByGigAndBuyer(gigId, buyerId)
-            if (existingPull != null) {
-                return@withContext Resource.Error("Ya tienes un pull activo para este Gig (Pull #${existingPull.id})")
+            if (buyerId <= 0) {
+                return@withContext Resource.Error("El ID del buyer no es válido. No se puede crear el pull. Por favor, cierra sesión y vuelve a iniciar sesión.")
             }
-
+            if (sellerId <= 0) {
+                return@withContext Resource.Error("El ID del seller no es válido. No se puede crear el pull.")
+            }
+            
             val auth = authHeader() ?: return@withContext Resource.Error("Debes iniciar sesión.")
+            
+            // VALIDACIÓN OBLIGATORIA CONTRA EL BACKEND
+            // IMPORTANTE: Obtener el buyerId real del token para asegurar que estamos usando el ID correcto
+            val actualBuyerId = getCurrentUserId()
+            if (actualBuyerId <= 0) {
+                return@withContext Resource.Error("No se pudo identificar tu usuario. Por favor, cierra sesión y vuelve a iniciar sesión.")
+            }
+            
+            // Usar el buyerId obtenido del token, no el que se pasó como parámetro
+            // Esto previene problemas cuando el buyerId pasado es incorrecto
+            val buyerIdToUse = actualBuyerId
+            
+            // Consultar al backend para obtener todos los pulls del buyer y verificar si el gigId ya existe
+            val checkResp = service.getPullsByRole(auth, role = "buyer", userId = buyerIdToUse)
+            
+            if (!checkResp.isSuccessful) {
+                return@withContext Resource.Error("No se pudo verificar los pulls existentes. Error ${checkResp.code()}")
+            }
+            
+            val bodyStr = checkResp.body()?.string().orEmpty()
+            val itemsArray: JSONArray = when {
+                bodyStr.trim().startsWith("[") -> JSONArray(bodyStr)
+                else -> {
+                    val obj = JSONObject(bodyStr)
+                    when {
+                        obj.has("data") -> obj.getJSONArray("data")
+                        obj.has("items") -> obj.getJSONArray("items")
+                        obj.has("results") -> obj.getJSONArray("results")
+                        else -> JSONArray()
+                    }
+                }
+            }
+
+            val listType = object : TypeToken<List<PullDto>>() {}.type
+            val dtoList: List<PullDto> = try {
+                gson.fromJson(itemsArray.toString(), listType)
+            } catch (e: Exception) {
+                // Si falla el parsing, asumir que no hay pulls (array vacío)
+                emptyList()
+            }
+
+            // Filtrar solo los pulls que pertenecen a este buyer específico
+            // (por si el backend devuelve pulls de otros buyers por error)
+            val buyerPulls = dtoList.filter { dto -> 
+                dto.buyerId == buyerIdToUse 
+            }
+
+            // Verificar si el gigId ya existe en algún pull de este buyer
+            // IMPORTANTE: Solo bloqueamos si el gigId es EXACTAMENTE el mismo
+            // Esto permite que un buyer cree múltiples pulls de diferentes gigs
+            val existingPullInBackend = buyerPulls.firstOrNull { dto ->
+                // Comparación estricta: debe coincidir EXACTAMENTE el gigId
+                // Si los gigIds son diferentes, esta validación NO debe bloquear
+                val matches = dto.gigId == gigId
+                matches
+            }
+            
+            if (existingPullInBackend != null) {
+                // Ya existe un pull para este gigId específico con este buyer
+                // Esto es correcto: un buyer no puede crear múltiples pulls del mismo gig
+                // Pero SÍ puede crear pulls de diferentes gigs
+                // Incluir información de depuración: mostrar todos los gigIds de los pulls existentes
+                val existingGigIds = buyerPulls.map { it.gigId }.joinToString(", ")
+                return@withContext Resource.Error(
+                    "Ya generaste un pull para este gig (Pull #${existingPullInBackend.id}, GigId: ${existingPullInBackend.gigId}). " +
+                    "Intentando crear pull para GigId: $gigId. " +
+                    "Pulls existentes (GigIds): [$existingGigIds]. " +
+                    "Puedes crear pulls de otros gigs diferentes."
+                )
+            }
+            
+            // Si llegamos aquí, NO existe un pull con este gigId para este buyer
+            // Proceder a crear el nuevo pull
+
+            // Reutilizar auth ya declarado arriba
             val request = CreatePullRequest(
                 sellerId = sellerId,
                 gigId = gigId,
                 priceInit = priceInit,
                 priceUpdate = priceUpdate,
-                buyerId = buyerId,
+                buyerId = buyerIdToUse, // Usar el buyerId obtenido del token
                 state = PullState.toString(state)
             )
             val resp = service.createPull(auth, request)
@@ -137,24 +185,22 @@ class PullRepository(
                     buyerId = dto.buyerId,
                     state = PullState.fromString(dto.state)
                 )
-                // Guardar en cache local
+                // Actualizar cache local solo con el pull recién creado (para optimización offline)
+                // La cache es solo para mostrar datos, no para validaciones de negocio
                 pullDao.insert(pull.toEntity())
                 Resource.Success(pull)
             } else {
                 val errorBody = resp.errorBody()?.string() ?: "Sin detalles"
                 val errorMsg = when (resp.code()) {
-                    404 -> "Endpoint no encontrado (404). Verifica la URL: api/v1/pull"
+                    404 -> "Endpoint no encontrado (404). Verifica la URL: api/Pull"
                     401 -> "No autorizado (401). Verifica el token"
                     400 -> {
-                        // Si es un error 400, intentar extraer el pull existente del mensaje de error
-                        if (errorBody.contains("already exists") || errorBody.contains("existente")) {
-                            // Buscar el pull en el backend
-                            val existingPullFromBackend = pullDao.findByGigAndBuyer(gigId, buyerId)
-                            if (existingPullFromBackend != null) {
-                                return@withContext Resource.Error("Ya tienes un pull activo para este Gig (Pull #${existingPullFromBackend.id})")
-                            }
+                        // Si es un error 400, puede ser que el backend rechace porque ya existe
+                        if (errorBody.contains("already exists") || errorBody.contains("existente") || errorBody.contains("ya existe")) {
+                            "Ya existe un pull para este gig. No se puede crear otro."
+                        } else {
+                            "Request inválido (400): $errorBody"
                         }
-                        "Request inválido (400): $errorBody"
                     }
                     else -> "Error ${resp.code()}: $errorBody"
                 }
@@ -210,15 +256,13 @@ class PullRepository(
                 )
             }
 
-            // Cache en Room
+            // Actualizar cache local solo para optimización de visualización (no para validaciones)
             pullDao.clearAll()
             pullDao.insertAll(pulls.map { it.toEntity() })
 
             Resource.Success(pulls)
         } catch (e: Exception) {
-            val local = pullDao.getAll().map { it.toDomain() }
-            if (local.isNotEmpty()) Resource.Success(local)
-            else Resource.Error(e.message ?: "Error al obtener pulls")
+            Resource.Error(e.message ?: "Error al obtener pulls desde el backend")
         }
     }
 
@@ -242,15 +286,10 @@ class PullRepository(
                 )
                 Resource.Success(pull)
             } else {
-                // Fallback a cache
-                val local = pullDao.getById(id)?.toDomain()
-                if (local != null) Resource.Success(local)
-                else Resource.Error("Error ${resp.code()}")
+                Resource.Error("Error al obtener pull: ${resp.code()}")
             }
         } catch (e: Exception) {
-            val local = pullDao.getById(id)?.toDomain()
-            if (local != null) Resource.Success(local)
-            else Resource.Error(e.message ?: "Error al obtener detalle del pull")
+            Resource.Error(e.message ?: "Error al obtener detalle del pull desde el backend")
         }
     }
 
@@ -263,9 +302,7 @@ class PullRepository(
             val resp = service.getPullsByRole(auth, role = "buyer", userId = buyerId)
 
             if (!resp.isSuccessful) {
-                val local = pullDao.getByBuyerId(buyerId).map { it.toDomain() }
-                return@withContext if (local.isNotEmpty()) Resource.Success(local)
-                else Resource.Error("Error ${resp.code()}")
+                return@withContext Resource.Error("Error al obtener pulls: ${resp.code()}")
             }
 
             val bodyStr = resp.body()?.string().orEmpty()
@@ -299,14 +336,12 @@ class PullRepository(
                 )
             }
 
-            // Cache en Room
+            // Actualizar cache local solo para optimización de visualización (no para validaciones)
             pullDao.insertAll(pulls.map { it.toEntity() })
 
             Resource.Success(pulls)
         } catch (e: Exception) {
-            val local = pullDao.getByBuyerId(buyerId).map { it.toDomain() }
-            if (local.isNotEmpty()) Resource.Success(local)
-            else Resource.Error(e.message ?: "Error al obtener pulls")
+            Resource.Error(e.message ?: "Error al obtener pulls desde el backend")
         }
     }
 

@@ -9,18 +9,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-
+import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
-
 import androidx.navigation.compose.rememberNavController
 import pe.edu.upc.gigumobile.gigs.presentation.BuyerGigDetailScreen
 import pe.edu.upc.gigumobile.gigs.presentation.BuyerGigsScreen
 import pe.edu.upc.gigumobile.gigs.presentation.GigViewModel
 import pe.edu.upc.gigumobile.pulls.presentation.CreatePullScreen
 import pe.edu.upc.gigumobile.pulls.presentation.MyPullsScreen
-import pe.edu.upc.gigumobile.pulls.presentation.PullDetailScreen
 import pe.edu.upc.gigumobile.pulls.presentation.PullViewModel
 import pe.edu.upc.gigumobile.users.presentation.BuyerAccountScreen
 import pe.edu.upc.gigumobile.users.presentation.UserViewModel
@@ -55,12 +53,7 @@ fun MainScreen(
                                 currentRoute == "my_pulls_nav" || 
                                 currentRoute == "profile"
             
-            // Excluir rutas de detalle y creación del bottom bar
-            val hideBottomBarRoutes = listOf("gig_detail", "create_pull", "pull_detail")
-            val shouldHide = hideBottomBarRoutes.any { currentRoute?.startsWith(it) == true }
-            val finalShowBottomBar = showBottomBar && !shouldHide
-            
-            if (finalShowBottomBar) {
+            if (showBottomBar) {
                 NavigationBar(
                     containerColor = navy
                 ) {
@@ -151,19 +144,7 @@ fun MainScreen(
                         }
                     },
                     onPullClick = { pullId ->
-                        navController.navigate("pull_detail/$pullId")
                     }
-                )
-            }
-
-            composable("pull_detail/{pullId}") { backStackEntry ->
-                val pullId = backStackEntry.arguments?.getString("pullId")?.toIntOrNull() ?: 0
-
-                PullDetailScreen(
-                    pullId = pullId,
-                    pullViewModel = pullViewModel,
-                    gigViewModel = gigViewModel,
-                    onBack = { navController.popBackStack() }
                 )
             }
 

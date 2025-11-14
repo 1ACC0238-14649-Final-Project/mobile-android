@@ -30,5 +30,8 @@ interface PullDao {
 
     @Query("DELETE FROM pulls WHERE id = :id")
     suspend fun deleteById(id: Int)
+
+    @Query("DELETE FROM pulls WHERE sellerId = 0")
+    suspend fun deleteWithInvalidSellerId()
 }
 
