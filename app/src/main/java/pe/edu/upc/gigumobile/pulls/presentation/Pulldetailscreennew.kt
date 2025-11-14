@@ -1,5 +1,6 @@
 package pe.edu.upc.gigumobile.pulls.presentation
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -7,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowBack
@@ -19,6 +21,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
@@ -29,7 +33,7 @@ import pe.edu.upc.gigumobile.pulls.domain.model.PullState
 import java.text.SimpleDateFormat
 import java.util.*
 
-// Modelo simple para mensajes de chat (puedes crear tu propia estructura de datos)
+// Modelo simple para mensajes de chat
 data class ChatMessage(
     val id: Int,
     val senderName: String,
@@ -40,7 +44,7 @@ data class ChatMessage(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PullDetailScreen(
+fun PullDetailScreenNew(
     pullId: Int,
     pullViewModel: PullViewModel,
     gigViewModel: GigViewModel,
@@ -53,7 +57,16 @@ fun PullDetailScreen(
     // Estado para el mensaje de chat
     var messageText by remember { mutableStateOf("") }
 
-    // Mensajes de ejemplo (en una implementación real, estos vendrían del backend)
+    // Estado para el precio editable
+    var editedPrice by remember { mutableStateOf("") }
+
+    // Estado para mostrar el diálogo de confirmación
+    var showConfirmDialog by remember { mutableStateOf(false) }
+
+    // Estado para controlar si se está actualizando
+    var isUpdating by remember { mutableStateOf(false) }
+
+    // Mensajes de ejemplo
     val chatMessages = remember {
         mutableStateListOf(
             ChatMessage(
@@ -64,8 +77,8 @@ fun PullDetailScreen(
                 isCurrentUser = false
             ),
             ChatMessage(
-                id = 2,
-                senderName = "Edward Davidson",
+                id = 1,
+                senderName = "David Wayne",
                 message = "Oh!\nThey fixed it and upgraded the security further. 🚀",
                 timestamp = "10:14",
                 isCurrentUser = false
@@ -87,6 +100,99 @@ fun PullDetailScreen(
     LaunchedEffect(pullDetailState.data?.gigId) {
         pullDetailState.data?.gigId?.let { gigId ->
             gigViewModel.loadGigDetail(gigId.toString())
+        }
+    }
+
+    // Inicializar el precio editable cuando se carga el pull
+    LaunchedEffect(pullDetailState.data) {
+        pullDetailState.data?.let { pull ->
+            if (editedPrice.isEmpty()) {
+                editedPrice = pull.priceUpdate.toString()
+            }
+        }
+    }
+
+    // Diálogo de confirmación
+    if (showConfirmDialog) {
+        val pull = pullDetailState.data
+        val currentPrice = pull?.priceUpdate ?: 0.0
+        val newPrice = editedPrice.toDoubleOrNull() ?: currentPrice
+        val hasChanges = newPrice != currentPrice
+
+        AlertDialog(
+            onDismissRequest = { showConfirmDialog = false },
+            title = {
+                Text(
+                    "Confirmar actualización",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column {
+                    if (hasChanges) {
+                        Text("¿Quieres modificar el precio actual?")
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Precio anterior: $${"%.2f".format(currentPrice)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray
+                        )
+                        Text(
+                            "Precio nuevo: $${"%.2f".format(newPrice)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else {
+                        Text("No hay cambios en el precio.")
+                        Text("¿Deseas continuar?")
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showConfirmDialog = false
+                        if (hasChanges && pull != null) {
+                            isUpdating = true
+                            // Actualizar el precio manteniendo el mismo estado
+                            pullViewModel.updatePull(
+                                id = pull.id,
+                                newPrice = newPrice,
+                                newState = pull.state,
+                                buyerId = pull.buyerId
+                            )
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF163A6B)
+                    )
+                ) {
+                    Text(if (hasChanges) "Sí" else "Aceptar")
+                }
+            },
+            dismissButton = {
+                if (hasChanges) {
+                    OutlinedButton(
+                        onClick = {
+                            showConfirmDialog = false
+                        }
+                    ) {
+                        Text("No")
+                    }
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    // Mostrar mensaje cuando se actualiza exitosamente
+    LaunchedEffect(pullDetailState.message) {
+        if (pullDetailState.message.contains("actualizado") && isUpdating) {
+            isUpdating = false
+            // Recargar el pull para obtener los datos actualizados
+            pullViewModel.loadPullDetail(pullId)
         }
     }
 
@@ -122,7 +228,7 @@ fun PullDetailScreen(
                 }
             }
 
-            pullDetailState.message.isNotEmpty() -> {
+            pullDetailState.message.isNotEmpty() && pullDetailState.data == null -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -130,7 +236,15 @@ fun PullDetailScreen(
                         .padding(16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(pullDetailState.message)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(pullDetailState.message)
+                        Button(onClick = onBack) {
+                            Text("Volver")
+                        }
+                    }
                 }
             }
 
@@ -144,9 +258,16 @@ fun PullDetailScreen(
                         .padding(innerPadding)
                 ) {
                     // Sección superior con precios y acciones
-                    PullPriceSection(
+                    PullPriceSectionNew(
                         pull = pull,
                         gig = gig,
+                        editedPrice = editedPrice,
+                        onPriceChange = { newValue ->
+                            // Solo permitir números y un punto decimal
+                            if (newValue.isEmpty() || newValue.matches(Regex("^\\d*\\.?\\d*$"))) {
+                                editedPrice = newValue
+                            }
+                        },
                         onCancelClick = {
                             // Cambiar el estado del pull a completado (cancelado)
                             pullViewModel.updatePull(
@@ -158,26 +279,22 @@ fun PullDetailScreen(
                             onBack()
                         },
                         onAcceptClick = {
-                            // Cambiar el estado del pull a en proceso (aceptado)
-                            pullViewModel.updatePull(
-                                id = pull.id,
-                                newPrice = pull.priceUpdate,
-                                newState = PullState.IN_PROCESS,
-                                buyerId = pull.buyerId
-                            )
-                        }
+                            // Mostrar diálogo de confirmación
+                            showConfirmDialog = true
+                        },
+                        isUpdating = isUpdating
                     )
 
                     Divider(thickness = 1.dp, color = Color.LightGray.copy(alpha = 0.3f))
 
                     // Sección de información del gig
                     if (gig != null) {
-                        GigInfoSection(gig = gig)
+                        GigInfoSectionNew(gig = gig)
                         Divider(thickness = 1.dp, color = Color.LightGray.copy(alpha = 0.3f))
                     }
 
                     // Sección de chat
-                    ChatSection(
+                    ChatSectionNew(
                         messages = chatMessages,
                         messageText = messageText,
                         onMessageTextChange = { messageText = it },
@@ -203,11 +320,14 @@ fun PullDetailScreen(
 }
 
 @Composable
-fun PullPriceSection(
+fun PullPriceSectionNew(
     pull: Pull,
     gig: Gig?,
+    editedPrice: String,
+    onPriceChange: (String) -> Unit,
     onCancelClick: () -> Unit,
-    onAcceptClick: () -> Unit
+    onAcceptClick: () -> Unit,
+    isUpdating: Boolean
 ) {
     Column(
         modifier = Modifier
@@ -217,7 +337,8 @@ fun PullPriceSection(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             // Precio inicial
             Column(
@@ -236,7 +357,7 @@ fun PullPriceSection(
                 )
             }
 
-            // Precio actual
+            // Precio actual - CAMPO EDITABLE
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -246,11 +367,25 @@ fun PullPriceSection(
                     color = Color.Gray
                 )
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "$${String.format("%.0f", pull.priceUpdate)}",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = if (pull.priceUpdate != pull.priceInit) MaterialTheme.colorScheme.primary else Color.Black
+
+                OutlinedTextField(
+                    value = editedPrice,
+                    onValueChange = onPriceChange,
+                    modifier = Modifier.width(100.dp),
+                    textStyle = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    ),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal
+                    ),
+                    singleLine = true,
+                    prefix = { Text("$", style = MaterialTheme.typography.titleLarge) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = Color.LightGray
+                    ),
+                    shape = RoundedCornerShape(8.dp)
                 )
             }
 
@@ -261,6 +396,7 @@ fun PullPriceSection(
             ) {
                 Button(
                     onClick = onCancelClick,
+                    enabled = !isUpdating,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.White,
                         contentColor = Color(0xFF163A6B)
@@ -274,13 +410,22 @@ fun PullPriceSection(
 
                 Button(
                     onClick = onAcceptClick,
+                    enabled = !isUpdating,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF163A6B)
                     ),
                     shape = RoundedCornerShape(20.dp),
                     modifier = Modifier.width(100.dp)
                 ) {
-                    Text("Accept", fontSize = 12.sp)
+                    if (isUpdating) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Accept", fontSize = 12.sp)
+                    }
                 }
             }
         }
@@ -288,7 +433,7 @@ fun PullPriceSection(
 }
 
 @Composable
-fun GigInfoSection(gig: Gig) {
+fun GigInfoSectionNew(gig: Gig) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -296,7 +441,6 @@ fun GigInfoSection(gig: Gig) {
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Imagen del gig
         Image(
             painter = rememberAsyncImagePainter(gig.image.ifBlank { null }),
             contentDescription = null,
@@ -308,7 +452,6 @@ fun GigInfoSection(gig: Gig) {
 
         Spacer(Modifier.width(12.dp))
 
-        // Información del gig
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = gig.title,
@@ -328,7 +471,7 @@ fun GigInfoSection(gig: Gig) {
 }
 
 @Composable
-fun ChatSection(
+fun ChatSectionNew(
     messages: List<ChatMessage>,
     messageText: String,
     onMessageTextChange: (String) -> Unit,
@@ -340,7 +483,6 @@ fun ChatSection(
             .fillMaxSize()
             .background(Color(0xFFF5F5F5))
     ) {
-        // Título de Chat
         Text(
             text = "Chat",
             style = MaterialTheme.typography.titleMedium,
@@ -348,7 +490,6 @@ fun ChatSection(
             modifier = Modifier.padding(16.dp)
         )
 
-        // Lista de mensajes
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
@@ -357,11 +498,10 @@ fun ChatSection(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(messages) { message ->
-                ChatMessageItem(message = message)
+                ChatMessageItemNew(message = message)
             }
         }
 
-        // Campo de entrada de mensaje
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -369,7 +509,7 @@ fun ChatSection(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { /* Agregar archivo */ }) {
+            IconButton(onClick = { }) {
                 Icon(
                     imageVector = Icons.Rounded.Add,
                     contentDescription = "Add",
@@ -408,13 +548,12 @@ fun ChatSection(
 }
 
 @Composable
-fun ChatMessageItem(message: ChatMessage) {
+fun ChatMessageItemNew(message: ChatMessage) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (message.isCurrentUser) Arrangement.End else Arrangement.Start
     ) {
         if (!message.isCurrentUser) {
-            // Avatar para mensajes de otros usuarios
             Box(
                 modifier = Modifier
                     .size(32.dp)

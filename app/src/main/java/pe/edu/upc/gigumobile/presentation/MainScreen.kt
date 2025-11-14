@@ -20,7 +20,7 @@ import pe.edu.upc.gigumobile.gigs.presentation.GigViewModel
 import pe.edu.upc.gigumobile.pulls.presentation.CreatePullScreen
 import pe.edu.upc.gigumobile.pulls.presentation.MyPullsScreen
 import pe.edu.upc.gigumobile.pulls.presentation.PullViewModel
-import pe.edu.upc.gigumobile.pull.presentation.PullDetailsScreen
+import pe.edu.upc.gigumobile.pulls.presentation.PullDetailScreenNew
 import pe.edu.upc.gigumobile.users.presentation.BuyerAccountScreen
 import pe.edu.upc.gigumobile.users.presentation.UserViewModel
 
@@ -152,14 +152,13 @@ fun MainScreen(
 
             composable("pull_detail/{pullId}") { backStackEntry ->
                 val pullId = backStackEntry.arguments?.getString("pullId")?.toIntOrNull() ?: 0
-                if (pullId > 0) {
-                    PullDetailsScreen(
-                        pullId = pullId,
-                        pullViewModel = pullViewModel,
-                        gigViewModel = gigViewModel,
-                        onBack = { navController.popBackStack() }
-                    )
-                }
+
+                PullDetailScreenNew(
+                    pullId = pullId,
+                    pullViewModel = pullViewModel,
+                    gigViewModel = gigViewModel,
+                    onBack = { navController.popBackStack() }
+                )
             }
 
             composable("profile") {
