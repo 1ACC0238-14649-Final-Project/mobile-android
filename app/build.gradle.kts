@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp) // plugin ksp
-
+    alias(libs.plugins.firebase.appdistribution)
 }
 
 android {
@@ -10,10 +10,11 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "pe.edu.upc.tpblueprint"
+        applicationId = "com.gigu.gigu"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
+        // versionCode se incrementa automáticamente basado en timestamp para evitar conflictos
+        versionCode = (System.currentTimeMillis() / 1000).toInt()
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -22,9 +23,19 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("release.keystore")
+            storePassword = "android"
+            keyAlias = "release"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -54,6 +65,22 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+}
+
+// Configuración de Firebase App Distribution
+firebaseAppDistribution {
+    // Reemplaza con el ID de tu proyecto de Firebase
+    // Puedes encontrarlo en Firebase Console > Project Settings > General
+    appId = System.getenv("FIREBASE_APP_ID") ?: "1:914900904211:android:e5651e8b26a0fde3c852e6"
+    
+    // Grupos de testers (opcional)
+    // groups = "testers,qa-team"
+    
+    // Notas de release (opcional)
+    releaseNotes = "Build generado automáticamente - ${System.currentTimeMillis()}"
+    
+    // Notificar a los testers (opcional)
+    // notifyTesters = true
 }
 
 dependencies {

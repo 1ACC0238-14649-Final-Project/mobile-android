@@ -13,3 +13,27 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Firebase
+google-services.json
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Variables de entorno
+.env
+.env.local
+
+# Keystore (NO subir a repositorio por seguridad)
+*.keystore
+*.jks
+!debug.keystore
+app/release.keystore
+
+# Logs
+*.log
+pglite-debug.log
+
+# Archivos locales de configuración (específicos de cada máquina)
+gradle.properties.local
+local.properties
