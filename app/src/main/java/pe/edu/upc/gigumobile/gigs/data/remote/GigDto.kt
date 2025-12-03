@@ -1,12 +1,13 @@
 package pe.edu.upc.gigumobile.gigs.data.remote
 
-// Basado en tu Swagger. Si algún campo no llega en la lista, vendrá null y lo manejamos en el mapper.
+// Based in Swagger. If a certain value does not reach the list, 
+// it will arrive as null. The mapper will take care of this.
 data class GigDto(
     val id: String,
     val image: String? = null,
     val title: String,
     val description: String? = null,
-    val sellerId: String,                 // el backend expone sellerId; si luego tienes nombre, mapeamos allá
+    val sellerId: String,
     val price: Double,
     val tags: List<String>? = null,
     val category: String,
