@@ -59,6 +59,20 @@ class UserViewModel(private val repository: UserRepository) : ViewModel() {
         }
     }
 
+    fun loginWithGoogle(idToken: String, email: String?, name: String?, image: String?) {
+        _loginState.value = UIState(isLoading = true)
+        viewModelScope.launch {
+            val res = repository.loginWithGoogle(idToken, email, name, image)
+            if (res is Resource.Success) {
+                // Load user data after successful login
+                _currentUser.value = repository.getSavedUser()
+                _loginState.value = UIState(data = res.data)
+            } else {
+                _loginState.value = UIState(message = res.message ?: "Google login error")
+            }
+        }
+    }
+
     fun logout() {
         viewModelScope.launch {
             repository.clearSession()

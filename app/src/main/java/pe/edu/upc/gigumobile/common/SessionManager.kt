@@ -18,5 +18,13 @@ class SessionManager(context: Context) {
     fun getToken(): String? {
         return sharedPreferences.getString("token", null)
     }
+
+    fun setTermsAccepted(accepted: Boolean) {
+        sharedPreferences.edit().putBoolean("terms_accepted", accepted).apply()
+    }
+
+    fun areTermsAccepted(): Boolean {
+        return sharedPreferences.getBoolean("terms_accepted", false)
+    }
 }
 

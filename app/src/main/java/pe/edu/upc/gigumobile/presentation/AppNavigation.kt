@@ -15,20 +15,27 @@ import pe.edu.upc.gigumobile.gigs.presentation.GigViewModel
 import pe.edu.upc.gigumobile.users.presentation.LoginScreen
 import pe.edu.upc.gigumobile.users.presentation.NotFoundScreen
 import pe.edu.upc.gigumobile.users.presentation.RegisterScreen
+import pe.edu.upc.gigumobile.users.presentation.TermsAndConditionsScreen
 import pe.edu.upc.gigumobile.users.presentation.UserViewModel
 import pe.edu.upc.gigumobile.pulls.presentation.PullViewModel
+import pe.edu.upc.gigumobile.common.SessionManager
 
 // ⬇️ IMPORTS para Pull UI
 import pe.edu.upc.gigumobile.pull.presentation.PullUi
 import pe.edu.upc.gigumobile.pull.presentation.PullDetailsScreen
+import pe.edu.upc.gigumobile.MainActivity
+import android.content.Context
 
 @Composable
 fun AppNavigation(
     userViewModel: UserViewModel,
     gigViewModel: GigViewModel,
-    pullViewModel: PullViewModel
+    pullViewModel: PullViewModel,
+    mainActivity: MainActivity? = null,
+    context: Context? = null
 ) {
     val navController = rememberNavController()
+    val sessionManager = context?.let { SessionManager(it) }
 
     NavHost(navController = navController, startDestination = "login") {
 
@@ -36,11 +43,38 @@ fun AppNavigation(
             LoginScreen(
                 viewModel = userViewModel,
                 onLoginSuccess = {
-                    navController.navigate("main") {
-                        popUpTo("login") { inclusive = true }
+                    // Verificar si el usuario ya aceptó los términos
+                    val termsAccepted = sessionManager?.areTermsAccepted() ?: false
+                    if (termsAccepted) {
+                        navController.navigate("main") {
+                            popUpTo("login") { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate("terms") {
+                            popUpTo("login") { inclusive = true }
+                        }
                     }
                 },
-                onNavigateToRegister = { navController.navigate("register") }
+                onNavigateToRegister = { navController.navigate("register") },
+                mainActivity = mainActivity
+            )
+        }
+
+        composable("terms") {
+            TermsAndConditionsScreen(
+                onAccept = {
+                    sessionManager?.setTermsAccepted(true)
+                    navController.navigate("main") {
+                        popUpTo("terms") { inclusive = true }
+                    }
+                },
+                onDecline = {
+                    // Si rechaza, hacer logout y volver al login
+                    userViewModel.logout()
+                    navController.navigate("login") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             )
         }
 
@@ -72,17 +106,29 @@ fun AppNavigation(
                     }
                 }
                 else -> {
-                    MainScreen(
-                        gigViewModel = gigViewModel,
-                        pullViewModel = pullViewModel,
-                        userViewModel = userViewModel,
-                        onLogout = {
-                            userViewModel.logout()
-                            navController.navigate("login") {
-                                popUpTo(0) { inclusive = true }
+                    // Verificar si el usuario aceptó los términos
+                    val termsAccepted = sessionManager?.areTermsAccepted() ?: false
+                    
+                    if (!termsAccepted) {
+                        // Si no aceptó términos, redirigir a la pantalla de términos
+                        LaunchedEffect(Unit) {
+                            navController.navigate("terms") {
+                                popUpTo("main") { inclusive = true }
                             }
                         }
-                    )
+                    } else {
+                        MainScreen(
+                            gigViewModel = gigViewModel,
+                            pullViewModel = pullViewModel,
+                            userViewModel = userViewModel,
+                            onLogout = {
+                                userViewModel.logout()
+                                navController.navigate("login") {
+                                    popUpTo(0) { inclusive = true }
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }

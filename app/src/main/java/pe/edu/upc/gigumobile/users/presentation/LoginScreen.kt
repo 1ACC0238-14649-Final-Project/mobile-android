@@ -7,16 +7,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import pe.edu.upc.gigumobile.MainActivity
 
 @Composable
 fun LoginScreen(
     viewModel: UserViewModel,
     onLoginSuccess: () -> Unit,
-    onNavigateToRegister: () -> Unit
+    onNavigateToRegister: () -> Unit,
+    mainActivity: MainActivity? = null
 ) {
     val state = viewModel.loginState.value
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+
+    // Configurar callbacks de Google Sign-In
+    LaunchedEffect(mainActivity) {
+        mainActivity?.setGoogleSignInCallbacks(
+            onSuccess = { idToken, email, name, image ->
+                viewModel.loginWithGoogle(idToken, email, name, image)
+            },
+            onError = { error ->
+                // El error se mostrará a través del estado del ViewModel
+            }
+        )
+    }
 
     LaunchedEffect(state.data) {
         if (state.data != null) onLoginSuccess()
@@ -55,6 +69,35 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Ingresar")
+            }
+
+            // Divider con "o"
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                HorizontalDivider(modifier = Modifier.weight(1f))
+                Text(
+                    text = " o ",
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                HorizontalDivider(modifier = Modifier.weight(1f))
+            }
+
+            // Botón de Google Sign-In
+            OutlinedButton(
+                onClick = { mainActivity?.signInWithGoogle() },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = mainActivity != null
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text("Continuar con Google")
+                }
             }
 
             TextButton(onClick = onNavigateToRegister) {

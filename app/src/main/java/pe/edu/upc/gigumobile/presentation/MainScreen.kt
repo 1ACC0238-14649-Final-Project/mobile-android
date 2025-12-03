@@ -22,7 +22,11 @@ import pe.edu.upc.gigumobile.pulls.presentation.MyPullsScreen
 import pe.edu.upc.gigumobile.pulls.presentation.PullViewModel
 import pe.edu.upc.gigumobile.pulls.presentation.PullDetailScreenNew
 import pe.edu.upc.gigumobile.users.presentation.BuyerAccountScreen
+import pe.edu.upc.gigumobile.users.presentation.TermsAndConditionsScreen
 import pe.edu.upc.gigumobile.users.presentation.UserViewModel
+import pe.edu.upc.gigumobile.common.SessionManager
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 
 sealed class BottomNavItem(
     val route: String,
@@ -162,9 +166,29 @@ fun MainScreen(
             }
 
             composable("profile") {
+                val context = LocalContext.current
+                val sessionManager = SessionManager(context)
+                
                 BuyerAccountScreen(
                     userViewModel = userViewModel,
-                    onLogout = onLogout
+                    onLogout = onLogout,
+                    onNavigateToTerms = {
+                        navController.navigate("terms_view")
+                    }
+                )
+            }
+
+            composable("terms_view") {
+                TermsAndConditionsScreen(
+                    onAccept = {
+                        // Cerrar y volver al perfil
+                        navController.popBackStack()
+                    },
+                    onDecline = {
+                        // Cerrar y volver al perfil
+                        navController.popBackStack()
+                    },
+                    isReadOnly = true // Solo lectura desde perfil
                 )
             }
         }

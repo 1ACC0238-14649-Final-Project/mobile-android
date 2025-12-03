@@ -9,6 +9,7 @@ import pe.edu.upc.gigumobile.users.data.local.UserDao
 import pe.edu.upc.gigumobile.users.data.local.UserEntity
 import pe.edu.upc.gigumobile.users.data.local.toDomain
 import pe.edu.upc.gigumobile.users.data.remote.AuthService
+import pe.edu.upc.gigumobile.users.data.remote.GoogleLoginRequest
 import pe.edu.upc.gigumobile.users.data.remote.LoginRequest
 import pe.edu.upc.gigumobile.users.data.remote.SignUpRequest
 import pe.edu.upc.gigumobile.users.domain.model.User
@@ -81,6 +82,38 @@ class UserRepository(
     suspend fun getSavedUser(): User? = withContext(Dispatchers.IO) {
         val entity = dao.fetchAny()
         entity?.toDomain()
+    }
+
+    suspend fun loginWithGoogle(idToken: String, email: String?, name: String?, image: String?): Resource<String> = withContext(Dispatchers.IO) {
+        try {
+            val request = GoogleLoginRequest(idToken, email, name, image)
+            val res = service.loginWithGoogle(request)
+            if (res.isSuccessful) {
+                val raw = try { res.body()?.string() } catch (e: Exception) { null }
+                val token = parseTokenFromRaw(raw)
+                if (!token.isNullOrBlank()) {
+                    val userEmail = email ?: "unknown@google.com"
+                    val userEntity = UserEntity(
+                        email = userEmail,
+                        token = token,
+                        name = name ?: "",
+                        lastname = "",
+                        role = "buyer",
+                        image = image
+                    )
+                    dao.insert(userEntity)
+                    sessionManager?.saveToken(token)
+                    Resource.Success(token)
+                } else {
+                    Resource.Error("Empty token from server")
+                }
+            } else {
+                val err = try { res.errorBody()?.string() } catch (e: Exception) { res.message() }
+                Resource.Error("Google login failed: ${res.code()} - ${err ?: res.message()}")
+            }
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Error in Google login")
+        }
     }
 
     suspend fun clearSession() = withContext(Dispatchers.IO) {

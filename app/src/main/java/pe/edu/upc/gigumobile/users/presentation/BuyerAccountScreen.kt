@@ -25,7 +25,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun BuyerAccountScreen(
     userViewModel: UserViewModel,
-    onLogout: () -> Unit = {}
+    onLogout: () -> Unit = {},
+    onNavigateToTerms: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -173,6 +174,26 @@ fun BuyerAccountScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Language")
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedButton(
+                    onClick = onNavigateToTerms,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Términos y Condiciones")
+                        Icon(
+                            imageVector = Icons.Default.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }
