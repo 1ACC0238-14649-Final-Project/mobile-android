@@ -20,8 +20,8 @@ class GigRepository(
     private val service: GigService,
     private val gigDao: GigDao,
     private val userDao: UserDao,
-    // Si más adelante te pasan un endpoint para obtener el seller (name/avatar), inyecta aquí:
-    private val userService: Any? = null // placeholder para no romper la firma
+    // If later you receive an endpoint to fetch the seller (name/avatar), inject it here:
+    private val userService: Any? = null // Placeholder to avoid breaking the method signature
 ) {
     private val gson = Gson()
 
@@ -30,7 +30,7 @@ class GigRepository(
     }
 
     /**
-     * Lista de gigs (paginada). La API devuelve un OBJETO con la clave "data" -> array.
+     * List of gigs (paginated). The API returns an OBJECT with the key "data" -> array.
      */
     suspend fun getAllGigs(
         page: Int = 1,
@@ -64,7 +64,7 @@ class GigRepository(
 
             val bodyStr = resp.body()?.string().orEmpty()
 
-            // Extrae el array: ahora sabemos que es "data" (según tu JSON).
+            // Extracts the array: we now know it is under "data".
             val itemsArray: JSONArray = when {
                 bodyStr.trim().startsWith("[") -> JSONArray(bodyStr)
                 else -> {
@@ -87,19 +87,19 @@ class GigRepository(
                     image = d.image ?: "",
                     title = d.title,
                     description = d.description ?: "",
-                    // Por ahora no tenemos nombre/foto del seller en la API de Gig:
+                    // For now we don’t have the seller’s name/photo in the Gig API:
                     sellerName = "",
                     price = d.price,
                     category = d.category,
                     tags = d.tags ?: emptyList(),
                     deliveryDays = d.deliveryDays,
                     extraFeatures = d.extraFeatures ?: emptyList(),
-                    sellerId = d.sellerId?.toString(), // conserva el sellerId para usar luego si quieres
+                    sellerId = d.sellerId?.toString(), // Retain the sellerId for potential future use
                     gigLink = "${Constants.BASE_URL}gig/${d.id}"
                 )
             }
 
-            // cache en Room
+            // Cache in Room
             gigDao.clearAll()
             gigDao.insertAll(gigs.map { it.toEntity() })
 
@@ -112,7 +112,7 @@ class GigRepository(
     }
 
     /**
-     * Detalle por id.
+     * Detail for id.
      */
     suspend fun getGigById(id: String): Resource<Gig> = withContext(Dispatchers.IO) {
         try {
@@ -125,7 +125,7 @@ class GigRepository(
                     image = d.image ?: "",
                     title = d.title,
                     description = d.description ?: "",
-                    sellerName = "", // igual que arriba: sin endpoint aún
+                    sellerName = "", // Same as before: no endpoint
                     price = d.price,
                     category = d.category,
                     tags = d.tags ?: emptyList(),
@@ -135,7 +135,7 @@ class GigRepository(
                 )
                 Resource.Success(gig)
             } else {
-                // fallback a cache
+                // Fallback to cache
                 val local = gigDao.getById(id)?.toDomain()
                 if (local != null) Resource.Success(local)
                 else Resource.Error("Error ${resp.code()}")
