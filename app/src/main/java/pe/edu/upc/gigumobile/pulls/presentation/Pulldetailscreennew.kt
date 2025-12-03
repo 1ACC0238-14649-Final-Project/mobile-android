@@ -112,67 +112,71 @@ fun PullDetailScreenNew(
         }
     }
 
-    // Diálogo de confirmación
+    // Diálogo de confirmación (condicional según estado)
     if (showConfirmDialog) {
         val pull = pullDetailState.data
-        val currentPrice = pull?.priceUpdate ?: 0.0
-        val newPrice = editedPrice.toDoubleOrNull() ?: currentPrice
-        val hasChanges = newPrice != currentPrice
+        val isPending = pull?.state == PullState.PENDING
+        val isInProcess = pull?.state == PullState.IN_PROCESS
 
-        AlertDialog(
-            onDismissRequest = { showConfirmDialog = false },
-            title = {
-                Text(
-                    "Confirmar actualización",
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Column {
-                    if (hasChanges) {
-                        Text("¿Quieres modificar el precio actual?")
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            "Precio anterior: $${"%.2f".format(currentPrice)}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray
-                        )
-                        Text(
-                            "Precio nuevo: $${"%.2f".format(newPrice)}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    } else {
-                        Text("No hay cambios en el precio.")
-                        Text("¿Deseas continuar?")
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showConfirmDialog = false
-                        if (hasChanges && pull != null) {
-                            isUpdating = true
-                            // Actualizar el precio manteniendo el mismo estado
-                            pullViewModel.updatePull(
-                                id = pull.id,
-                                newPrice = newPrice,
-                                newState = pull.state,
-                                buyerId = pull.buyerId
-                            )
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF163A6B)
+        if (isPending) {
+            // Diálogo para PENDING: modificar precio
+            val currentPrice = pull?.priceUpdate ?: 0.0
+            val newPrice = editedPrice.toDoubleOrNull() ?: currentPrice
+            val hasChanges = newPrice != currentPrice
+
+            AlertDialog(
+                onDismissRequest = { showConfirmDialog = false },
+                title = {
+                    Text(
+                        "Confirmar actualización",
+                        fontWeight = FontWeight.Bold
                     )
-                ) {
-                    Text(if (hasChanges) "Sí" else "Aceptar")
-                }
-            },
-            dismissButton = {
-                if (hasChanges) {
+                },
+                text = {
+                    Column {
+                        if (hasChanges) {
+                            Text("¿Quieres modificar el precio actual?")
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Precio anterior: $${"%.2f".format(currentPrice)}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.Gray
+                            )
+                            Text(
+                                "Precio nuevo: $${"%.2f".format(newPrice)}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        } else {
+                            Text("No hay cambios en el precio.")
+                            Text("¿Deseas continuar?")
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showConfirmDialog = false
+                            if (hasChanges && pull != null) {
+                                isUpdating = true
+                                // Actualizar el precio manteniendo el mismo estado
+                                pullViewModel.updatePull(
+                                    id = pull.id,
+                                    newPrice = newPrice,
+                                    newState = pull.state,
+                                    buyerId = pull.buyerId
+                                )
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF163A6B)
+                        )
+                    ) {
+                        Text("Sí")
+                    }
+                },
+                dismissButton = {
                     OutlinedButton(
                         onClick = {
                             showConfirmDialog = false
@@ -180,11 +184,59 @@ fun PullDetailScreenNew(
                     ) {
                         Text("No")
                     }
-                }
-            },
-            containerColor = Color.White,
-            shape = RoundedCornerShape(16.dp)
-        )
+                },
+                containerColor = Color.White,
+                shape = RoundedCornerShape(16.dp)
+            )
+        } else if (isInProcess) {
+            // Diálogo para IN_PROCESS: completar trabajo
+            AlertDialog(
+                onDismissRequest = { showConfirmDialog = false },
+                title = {
+                    Text(
+                        "Confirmar finalización",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text("El freelancer ya completó el trabajo. ¿Deseas marcar este pull como completado?")
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showConfirmDialog = false
+                            if (pull != null) {
+                                isUpdating = true
+                                // Cambiar estado a COMPLETE manteniendo el precio actual
+                                pullViewModel.updatePull(
+                                    id = pull.id,
+                                    newPrice = pull.priceUpdate,
+                                    newState = PullState.COMPLETE,
+                                    buyerId = pull.buyerId
+                                )
+                                onBack()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF163A6B)
+                        )
+                    ) {
+                        Text("Sí")
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(
+                        onClick = {
+                            showConfirmDialog = false
+                        }
+                    ) {
+                        Text("No")
+                    }
+                },
+                containerColor = Color.White,
+                shape = RoundedCornerShape(16.dp)
+            )
+        }
     }
 
     // Mostrar mensaje cuando se actualiza exitosamente
@@ -252,38 +304,53 @@ fun PullDetailScreenNew(
                 val pull = pullDetailState.data
                 val gig = gigDetailState.data
 
+                // Determinar el estado del Pull
+                val isPending = pull.state == PullState.PENDING
+                val isInProcess = pull.state == PullState.IN_PROCESS
+                val isComplete = pull.state == PullState.COMPLETE
+                val showActions = isPending || isInProcess
+
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
                 ) {
                     // Sección superior con precios y acciones
-                    PullPriceSectionNew(
-                        pull = pull,
-                        gig = gig,
-                        editedPrice = editedPrice,
-                        onPriceChange = { newValue ->
-                            // Solo permitir números y un punto decimal
-                            if (newValue.isEmpty() || newValue.matches(Regex("^\\d*\\.?\\d*$"))) {
-                                editedPrice = newValue
-                            }
-                        },
-                        onCancelClick = {
-                            // Cambiar el estado del pull a completado (cancelado)
-                            pullViewModel.updatePull(
-                                id = pull.id,
-                                newPrice = pull.priceUpdate,
-                                newState = PullState.COMPLETE,
-                                buyerId = pull.buyerId
-                            )
-                            onBack()
-                        },
-                        onAcceptClick = {
-                            // Mostrar diálogo de confirmación
-                            showConfirmDialog = true
-                        },
-                        isUpdating = isUpdating
-                    )
+                    if (showActions) {
+                        PullPriceSectionNew(
+                            pull = pull,
+                            gig = gig,
+                            editedPrice = editedPrice,
+                            onPriceChange = { newValue ->
+                                // Solo permitir números y un punto decimal
+                                if (newValue.isEmpty() || newValue.matches(Regex("^\\d*\\.?\\d*$"))) {
+                                    editedPrice = newValue
+                                }
+                            },
+                            onCancelClick = {
+                                // Cambiar el estado del pull a completado (cancelado)
+                                pullViewModel.updatePull(
+                                    id = pull.id,
+                                    newPrice = pull.priceUpdate,
+                                    newState = PullState.COMPLETE,
+                                    buyerId = pull.buyerId
+                                )
+                                onBack()
+                            },
+                            onAcceptClick = {
+                                // Mostrar diálogo de confirmación
+                                showConfirmDialog = true
+                            },
+                            isUpdating = isUpdating,
+                            isPending = isPending
+                        )
+                    } else {
+                        // Solo mostrar precios sin botones (para COMPLETE)
+                        SimplePriceDisplay(
+                            initialPrice = pull.priceInit,
+                            currentPrice = pull.priceUpdate
+                        )
+                    }
 
                     Divider(thickness = 1.dp, color = Color.LightGray.copy(alpha = 0.3f))
 
@@ -327,7 +394,8 @@ fun PullPriceSectionNew(
     onPriceChange: (String) -> Unit,
     onCancelClick: () -> Unit,
     onAcceptClick: () -> Unit,
-    isUpdating: Boolean
+    isUpdating: Boolean,
+    isPending: Boolean
 ) {
     Column(
         modifier = Modifier
@@ -357,7 +425,7 @@ fun PullPriceSectionNew(
                 )
             }
 
-            // Precio actual - CAMPO EDITABLE
+            // Precio actual - CAMPO EDITABLE (solo si isPending)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -371,10 +439,11 @@ fun PullPriceSectionNew(
                 OutlinedTextField(
                     value = editedPrice,
                     onValueChange = onPriceChange,
+                    enabled = isPending, // ← NUEVO: solo editable en PENDING
                     modifier = Modifier.width(100.dp),
                     textStyle = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = if (isPending) MaterialTheme.colorScheme.primary else Color.Gray
                     ),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Decimal
@@ -383,7 +452,9 @@ fun PullPriceSectionNew(
                     prefix = { Text("$", style = MaterialTheme.typography.titleLarge) },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = Color.LightGray
+                        unfocusedBorderColor = Color.LightGray,
+                        disabledBorderColor = Color.LightGray,
+                        disabledTextColor = Color.Gray
                     ),
                     shape = RoundedCornerShape(8.dp)
                 )
@@ -427,6 +498,60 @@ fun PullPriceSectionNew(
                         Text("Accept", fontSize = 12.sp)
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun SimplePriceDisplay(
+    initialPrice: Double,
+    currentPrice: Double
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White)
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Precio inicial
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Initial",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "$${String.format("%.0f", initialPrice)}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Precio actual
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Actual",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "$${String.format("%.0f", currentPrice)}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
