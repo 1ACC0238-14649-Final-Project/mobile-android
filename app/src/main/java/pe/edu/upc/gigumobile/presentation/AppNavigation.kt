@@ -20,7 +20,7 @@ import pe.edu.upc.gigumobile.users.presentation.UserViewModel
 import pe.edu.upc.gigumobile.pulls.presentation.PullViewModel
 import pe.edu.upc.gigumobile.common.SessionManager
 
-// ⬇️ IMPORTS para Pull UI
+// IMPORTS for Pull UI
 import pe.edu.upc.gigumobile.pull.presentation.PullUi
 import pe.edu.upc.gigumobile.pull.presentation.PullDetailsScreen
 import pe.edu.upc.gigumobile.MainActivity
@@ -43,7 +43,7 @@ fun AppNavigation(
             LoginScreen(
                 viewModel = userViewModel,
                 onLoginSuccess = {
-                    // Verificar si el usuario ya aceptó los términos
+                    // Check if the user has already accepted the terms
                     val termsAccepted = sessionManager?.areTermsAccepted() ?: false
                     if (termsAccepted) {
                         navController.navigate("main") {
@@ -69,7 +69,7 @@ fun AppNavigation(
                     }
                 },
                 onDecline = {
-                    // Si rechaza, hacer logout y volver al login
+                    // If it declines, perform logout and redirect to the login screen
                     userViewModel.logout()
                     navController.navigate("login") {
                         popUpTo(0) { inclusive = true }
@@ -91,14 +91,14 @@ fun AppNavigation(
             
             when {
                 currentUser == null -> {
-                    // Redirigir inmediatamente sin mostrar nada
+                    // Redirect immediately without displaying anything
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator()
                     }
-                    // Redirigir en el primer frame
+                    // Redirect on the first frame
                     LaunchedEffect(Unit) {
                         navController.navigate("login") {
                             popUpTo(0) { inclusive = true }
@@ -106,11 +106,11 @@ fun AppNavigation(
                     }
                 }
                 else -> {
-                    // Verificar si el usuario aceptó los términos
+                    // Check if the user has accepted the terms
                     val termsAccepted = sessionManager?.areTermsAccepted() ?: false
                     
                     if (!termsAccepted) {
-                        // Si no aceptó términos, redirigir a la pantalla de términos
+                        // If the user has not accepted the terms, redirect to the terms screen
                         LaunchedEffect(Unit) {
                             navController.navigate("terms") {
                                 popUpTo("main") { inclusive = true }
@@ -140,25 +140,25 @@ fun AppNavigation(
                 viewModel = gigViewModel,
                 onBack = { navController.popBackStack() },
                 onBuyNow = { pullUi: PullUi ->
-                    // Guardar el objeto visual en el back stack actual
+                    // Save the visual object in the current back stack
                     navController.currentBackStackEntry
                         ?.savedStateHandle
                         ?.set("pull_ui", pullUi)
 
-                    // Navegar a la pantalla Pull (solo UI)
+                    // Navigate to the Pull screen (UI only)
                     navController.navigate("pull_details")
                 }
             )
         }
 
-        // ⬇️ Nueva ruta: pantalla visual de Pull Details
+        // New Route: Visual Screen to Pull Details
         composable("pull_details") {
-            // Recuperar el objeto pasado desde BuyerGigDetailScreen
+            // Retrieve the object passed from BuyerGigDetailScreen
             val pullUi = navController.previousBackStackEntry
                 ?.savedStateHandle
                 ?.get<PullUi>("pull_ui")
 
-            // Fallback por si llega nulo
+            // Fallback in case it reaches null
             val safe = pullUi ?: PullUi(
                 title = "Gig title",
                 description = "No description provided.",
