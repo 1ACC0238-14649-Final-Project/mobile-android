@@ -23,7 +23,7 @@ import coil.compose.rememberAsyncImagePainter
 import pe.edu.upc.gigumobile.gigs.domain.model.Gig
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import pe.edu.upc.gigumobile.pull.presentation.PullUi // ⬅️ IMPORTANTE
+import pe.edu.upc.gigumobile.pull.presentation.PullUi // Important
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -62,7 +62,7 @@ fun BuyerGigDetailScreen(
             state.data?.let { gig ->
                 Button(
                     onClick = {
-                        // Construimos el objeto visual para PullDetailsScreen
+                        // Build the visual object for PullDetailsScreen
                         val pullUi = PullUi(
                             title = gig.title,
                             description = gig.description.ifBlank { "No description provided." },
