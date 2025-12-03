@@ -34,18 +34,18 @@ class PullRepository(
         return withContext(Dispatchers.IO) {
             try {
                 val token = userDao.fetchAny()?.token ?: return@withContext 0
-                
+
                 // Decodificar el JWT token para extraer el userId
                 val parts = token.split(".")
                 if (parts.size != 3) {
                     // Token inválido - no retornar valor por defecto
                     return@withContext 0
                 }
-                
+
                 // Decodificar el payload (segunda parte del JWT)
                 val payload = String(Base64.decode(parts[1], Base64.URL_SAFE))
                 val jsonPayload = JSONObject(payload)
-                
+
                 // Extraer el sid (user ID) del claim
                 val sidClaim = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/sid"
                 if (jsonPayload.has(sidClaim)) {
@@ -87,27 +87,27 @@ class PullRepository(
             if (sellerId <= 0) {
                 return@withContext Resource.Error("El ID del seller no es válido. No se puede crear el pull.")
             }
-            
+
             val auth = authHeader() ?: return@withContext Resource.Error("Debes iniciar sesión.")
-            
+
             // VALIDACIÓN OBLIGATORIA CONTRA EL BACKEND
             // IMPORTANTE: Obtener el buyerId real del token para asegurar que estamos usando el ID correcto
             val actualBuyerId = getCurrentUserId()
             if (actualBuyerId <= 0) {
                 return@withContext Resource.Error("No se pudo identificar tu usuario. Por favor, cierra sesión y vuelve a iniciar sesión.")
             }
-            
+
             // Usar el buyerId obtenido del token, no el que se pasó como parámetro
             // Esto previene problemas cuando el buyerId pasado es incorrecto
             val buyerIdToUse = actualBuyerId
-            
+
             // Consultar al backend para obtener todos los pulls del buyer y verificar si el gigId ya existe
             val checkResp = service.getPullsByRole(auth, role = "buyer", userId = buyerIdToUse)
-            
+
             if (!checkResp.isSuccessful) {
                 return@withContext Resource.Error("No se pudo verificar los pulls existentes. Error ${checkResp.code()}")
             }
-            
+
             val bodyStr = checkResp.body()?.string().orEmpty()
             val itemsArray: JSONArray = when {
                 bodyStr.trim().startsWith("[") -> JSONArray(bodyStr)
@@ -132,8 +132,8 @@ class PullRepository(
 
             // Filtrar solo los pulls que pertenecen a este buyer específico
             // (por si el backend devuelve pulls de otros buyers por error)
-            val buyerPulls = dtoList.filter { dto -> 
-                dto.buyerId == buyerIdToUse 
+            val buyerPulls = dtoList.filter { dto ->
+                dto.buyerId == buyerIdToUse
             }
 
             // Verificar si el gigId ya existe en algún pull de este buyer
@@ -145,7 +145,7 @@ class PullRepository(
                 val matches = dto.gigId == gigId
                 matches
             }
-            
+
             if (existingPullInBackend != null) {
                 // Ya existe un pull para este gigId específico con este buyer
                 // Esto es correcto: un buyer no puede crear múltiples pulls del mismo gig
@@ -154,12 +154,12 @@ class PullRepository(
                 val existingGigIds = buyerPulls.map { it.gigId }.joinToString(", ")
                 return@withContext Resource.Error(
                     "Ya generaste un pull para este gig (Pull #${existingPullInBackend.id}, GigId: ${existingPullInBackend.gigId}). " +
-                    "Intentando crear pull para GigId: $gigId. " +
-                    "Pulls existentes (GigIds): [$existingGigIds]. " +
-                    "Puedes crear pulls de otros gigs diferentes."
+                            "Intentando crear pull para GigId: $gigId. " +
+                            "Pulls existentes (GigIds): [$existingGigIds]. " +
+                            "Puedes crear pulls de otros gigs diferentes."
                 )
             }
-            
+
             // Si llegamos aquí, NO existe un pull con este gigId para este buyer
             // Proceder a crear el nuevo pull
 
@@ -411,4 +411,3 @@ class PullRepository(
         }
     }
 }
-
