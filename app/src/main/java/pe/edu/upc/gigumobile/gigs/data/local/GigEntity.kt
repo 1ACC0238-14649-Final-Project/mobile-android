@@ -13,6 +13,6 @@ data class GigEntity(
     val price: Double,
     val category: String,
     val tagsJson: String,
-    val deliveryDays: Int?,      // puede ser null
-    val extraFeaturesJson: String // JSON de List<String>
+    val deliveryDays: Int?,       // Can be null
+    val extraFeaturesJson: String // JSON of List<String>
 )
